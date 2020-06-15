@@ -70,6 +70,9 @@ func ImportBackup(backupDir string) error {
 		return fmt.Errorf("Error loading users: %v", err)
 	}
 	db, err := initDB()
+	if db != nil {
+		defer db.Close()
+	}
 	if err != nil {
 		return fmt.Errorf("Error initializing database: %v", err)
 	}
@@ -191,12 +194,12 @@ func initDB() (*sql.DB, error) {
 	if _, err = db.Exec(
 		"CREATE TABLE IF NOT EXISTS messages (channel TEXT NOT NULL, timestamp TEXT NOT NULL, txt TEXT, user TEXT, attachments TEXT, reacts TEXT, children TEXT)",
 	); err != nil {
-		return nil, err
+		return db, err
 	}
 	if _, err = db.Exec(
 		"CREATE TABLE IF NOT EXISTS users (id TEXT, real_name TEXT, display_name TEXT)",
 	); err != nil {
-		return nil, err
+		return db, err
 	}
 	return db, nil
 }
