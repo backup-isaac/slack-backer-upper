@@ -1,4 +1,4 @@
-package manual
+package files
 
 import (
 	"archive/zip"
