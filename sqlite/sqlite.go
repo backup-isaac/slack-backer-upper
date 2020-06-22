@@ -11,57 +11,86 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// InitDB creates and returns a handle to the initialized SQLite database
-// and creates the necessary tables
-func InitDB() (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", "./slack.db?_journal=WAL")
-	if err != nil {
-		return nil, err
-	}
-	if _, err = db.Exec(
-		"CREATE TABLE IF NOT EXISTS messages (channel TEXT NOT NULL, timestamp TEXT NOT NULL, txt TEXT, user TEXT, attachments TEXT, reacts TEXT, children TEXT)",
-	); err != nil {
-		return db, err
-	}
-	if _, err = db.Exec(
-		"CREATE TABLE IF NOT EXISTS users (id TEXT, real_name TEXT, display_name TEXT)",
-	); err != nil {
-		return db, err
-	}
-
-	return db, nil
+// Sqlite is a handle to the SQLite database plus prepared statements
+type Sqlite struct {
+	db             *sql.DB
+	addMessage     *sql.Stmt
+	addUser        *sql.Stmt
+	updateChildren *sql.Stmt
 }
 
-var (
-	addMessage *sql.Stmt
-	addUser    *sql.Stmt
-)
-
-// PrepareQueries prepares statements to use for repeated queries
-func PrepareQueries(db *sql.DB) error {
-	var err error
-	addMessage, err = db.Prepare("INSERT INTO messages VALUES (?, ?, ?, ?, ?, ?, ?)")
-	if err != nil {
+// Close closes the Sqlite hadle
+func (s *Sqlite) Close() error {
+	if err := s.addMessage.Close(); err != nil {
 		return err
 	}
-	addUser, err = db.Prepare("INSERT OR IGNORE INTO users VALUES (?, ?, ?)")
-	return err
+	if err := s.addUser.Close(); err != nil {
+		return err
+	}
+	if err := s.updateChildren.Close(); err != nil {
+		return err
+	}
+	return s.db.Close()
 }
 
-// CloseQueries closes those prepared statements
-func CloseQueries(db *sql.DB) error {
-	var err error
-	if addMessage != nil {
-		err = addMessage.Close()
+// NewSqlite creates and returns a handle to the initialized SQLite database,
+// creates the necessary tables, and prepares the necessary statements
+func NewSqlite() (Sqlite, error) {
+	db, err := sql.Open("sqlite3", "./slack.db?_journal=WAL")
+	if err != nil {
+		return Sqlite{}, err
 	}
-	if addUser != nil {
-		err = addUser.Close()
+	if _, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS messages
+			(channel TEXT NOT NULL, timestamp TEXT NOT NULL, txt TEXT, user TEXT, attachments TEXT, reacts TEXT, children TEXT);
+		CREATE TABLE IF NOT EXISTS users
+			(id TEXT, real_name TEXT, display_name TEXT);
+	`); err != nil {
+		db.Close()
+		return Sqlite{}, err
 	}
-	return err
+	addMessage, err := db.Prepare("INSERT INTO messages VALUES (?, ?, ?, ?, ?, ?, ?)")
+	if err != nil {
+		db.Close()
+		return Sqlite{}, err
+	}
+	addUser, err := db.Prepare("INSERT OR IGNORE INTO users VALUES (?, ?, ?)")
+	if err != nil {
+		addMessage.Close()
+		db.Close()
+		return Sqlite{}, err
+	}
+	updateChildren, err := db.Prepare(`
+		UPDATE messages SET children = (
+			SELECT children FROM messages WHERE channel = ? AND timestamp = ?
+		) || ',' || ? WHERE channel = ? AND timestamp = ?;
+	`)
+	if err != nil {
+		addMessage.Close()
+		addUser.Close()
+		db.Close()
+		return Sqlite{}, err
+	}
+	return Sqlite{
+		db:             db,
+		addMessage:     addMessage,
+		addUser:        addUser,
+		updateChildren: updateChildren,
+	}, nil
+}
+
+// UpdateMessage updates a message in the DB with msg's new children
+func (s *Sqlite) UpdateMessage(channelName string, msg slack.StoredMessage) error {
+	if _, err := s.updateChildren.Exec(
+		channelName, msg.Timestamp, strings.Join(msg.Thread, ","), channelName, msg.Timestamp,
+	); err != nil {
+		return fmt.Errorf("Error updating message %#v: %v", msg, err)
+	}
+	return nil
 }
 
 // InsertMessage inserts msg into the DB associated with channelName
-func InsertMessage(channelName string, msg slack.StoredMessage) error {
+func (s *Sqlite) InsertMessage(channelName string, msg slack.StoredMessage) error {
 	attach, err := json.Marshal(msg.Attachments)
 	if err != nil {
 		return err
@@ -70,7 +99,7 @@ func InsertMessage(channelName string, msg slack.StoredMessage) error {
 	if err != nil {
 		return err
 	}
-	if _, err = addMessage.Exec(
+	if _, err = s.addMessage.Exec(
 		channelName, msg.Timestamp, msg.Text, msg.User, attach, reacc, strings.Join(msg.Thread, ","),
 	); err != nil {
 		return fmt.Errorf("Error inserting new message %#v: %v", msg, err)
@@ -79,9 +108,9 @@ func InsertMessage(channelName string, msg slack.StoredMessage) error {
 }
 
 // InsertUsers inserts users into the DB
-func InsertUsers(users map[string]slack.StoredUser) error {
+func (s *Sqlite) InsertUsers(users map[string]slack.StoredUser) error {
 	for id, user := range users {
-		if _, err := addUser.Exec(id, user.RealName, user.DisplayName); err != nil {
+		if _, err := s.addUser.Exec(id, user.RealName, user.DisplayName); err != nil {
 			return fmt.Errorf("Error inserting user: %v", err)
 		}
 	}

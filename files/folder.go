@@ -18,19 +18,15 @@ func ImportFolder(name string) error {
 	if err != nil {
 		return fmt.Errorf("Error loading users: %v", err)
 	}
-	db, err := sqlite.InitDB()
-	if db != nil {
-		defer db.Close()
-	}
+	db, err := sqlite.NewSqlite()
 	if err != nil {
 		return fmt.Errorf("Error initializing database: %v", err)
 	}
+	defer db.Close()
 	entries, err := ioutil.ReadDir(name)
 	if err != nil {
 		return fmt.Errorf("Error listing folder contents: %v", err)
 	}
-	err = sqlite.PrepareQueries(db)
-	defer sqlite.CloseQueries(db)
 	if err != nil {
 		return fmt.Errorf("Error preparing queries: %v", err)
 	}
@@ -39,10 +35,10 @@ func ImportFolder(name string) error {
 	for _, entry := range entries {
 		if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
 			goroutines++
-			go importChannel(name, entry.Name(), users, results)
+			go importChannel(db, name, entry.Name(), users, results)
 		}
 	}
-	if serr := sqlite.InsertUsers(users); serr != nil {
+	if serr := db.InsertUsers(users); serr != nil {
 		err = serr
 	}
 	for i := 0; i < goroutines; i++ {
@@ -55,6 +51,7 @@ func ImportFolder(name string) error {
 }
 
 func importChannel(
+	db sqlite.Sqlite,
 	dirname string,
 	channelName string,
 	users map[string]slack.StoredUser,
@@ -100,7 +97,12 @@ func importChannel(
 		}
 	}
 	for _, msg := range channelMessages {
-		if err = sqlite.InsertMessage(strings.TrimSuffix(channelName, ".json"), msg); err != nil {
+		if msg.User == "" && msg.Text == "" && msg.Attachments == nil {
+			if err = db.UpdateMessage(strings.TrimSuffix(channelName, ".json"), msg); err != nil {
+				resultsChannel <- err
+				return
+			}
+		} else if err = db.InsertMessage(strings.TrimSuffix(channelName, ".json"), msg); err != nil {
 			resultsChannel <- err
 			return
 		}
