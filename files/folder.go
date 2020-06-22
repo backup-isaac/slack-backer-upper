@@ -91,7 +91,10 @@ func importChannel(
 				} else {
 					parent.Thread = append(parent.Thread, msg.Timestamp)
 					sort.Strings(parent.Thread)
+					channelMessages[msg.ParentTimestamp] = parent
 				}
+			} else {
+				msg.Thread = []string{}
 			}
 			channelMessages[msg.Timestamp] = msg
 		}

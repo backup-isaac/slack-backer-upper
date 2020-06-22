@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slack-backer-upper/slack"
+	"strings"
 
 	// go database drivers require _ import
 	_ "github.com/mattn/go-sqlite3"
@@ -69,15 +70,8 @@ func InsertMessage(channelName string, msg slack.StoredMessage) error {
 	if err != nil {
 		return err
 	}
-	var children sql.NullString
-	if msg.ParentTimestamp == "" || msg.ParentTimestamp == msg.Timestamp || msg.Subtype == "thread_broadcast" {
-		children = sql.NullString{
-			String: "[]",
-			Valid:  true,
-		}
-	}
 	if _, err = addMessage.Exec(
-		channelName, msg.Timestamp, msg.Text, msg.User, attach, reacc, children,
+		channelName, msg.Timestamp, msg.Text, msg.User, attach, reacc, strings.Join(msg.Thread, ","),
 	); err != nil {
 		return fmt.Errorf("Error inserting new message %#v: %v", msg, err)
 	}
