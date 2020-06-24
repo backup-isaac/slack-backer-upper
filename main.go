@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"slack-backer-upper/files"
+	"slack-backer-upper/server"
 )
 
 var (
@@ -29,6 +30,6 @@ func main() {
 			log.Printf("Error importing backup: %v\n", err)
 		}
 	} else {
-		log.Printf("Starting HTTP server...")
+		server.Start()
 	}
 }

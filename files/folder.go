@@ -18,7 +18,7 @@ func ImportFolder(name string) error {
 	if err != nil {
 		return fmt.Errorf("Error loading users: %v", err)
 	}
-	db, err := sqlite.NewSqlite()
+	db, err := sqlite.NewArchiveStorage()
 	if err != nil {
 		return fmt.Errorf("Error initializing database: %v", err)
 	}
@@ -51,7 +51,7 @@ func ImportFolder(name string) error {
 }
 
 func importChannel(
-	db sqlite.Sqlite,
+	db sqlite.ArchiveStorage,
 	dirname string,
 	channelName string,
 	users map[string]slack.StoredUser,
