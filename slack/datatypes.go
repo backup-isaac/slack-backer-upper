@@ -31,6 +31,26 @@ type StoredMessage struct {
 	Reacts          map[string][]string
 }
 
+// ThreadMessage is returned from the API / to the front end
+type ThreadMessage struct {
+	Timestamp     string              `json:"timestamp"`
+	Text          string              `json:"text"`
+	User          string              `json:"user"`
+	Attachments   []Attachment        `json:"attachments"`
+	Reacts        map[string][]string `json:"reacts"`
+	SentToChannel bool                `json:"sent"`
+}
+
+// ParentMessage is returned from the API / to the front end
+type ParentMessage struct {
+	Timestamp   string              `json:"timestamp"`
+	Text        string              `json:"text"`
+	User        string              `json:"user"`
+	Attachments []Attachment        `json:"attachments"`
+	Reacts      map[string][]string `json:"reacts"`
+	Thread      []ThreadMessage     `json:"thread"`
+}
+
 // RawMessage is what we care about from Slack
 type RawMessage struct {
 	Timestamp       string       `json:"ts"`

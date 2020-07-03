@@ -77,3 +77,14 @@ func FilterRawMessage(message RawMessage, users map[string]StoredUser) StoredMes
 	}
 	return ret
 }
+
+// ParentMessageFromStored creates a ParentMessage from a StoredMessage
+func ParentMessageFromStored(message StoredMessage) ParentMessage {
+	return ParentMessage{
+		Timestamp: message.Timestamp,
+		Text: message.Text,
+		User: message.User,
+		Attachments: message.Attachments,
+		Reacts: message.Reacts,
+	}
+}

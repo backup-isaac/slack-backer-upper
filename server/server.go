@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"path"
 	"runtime"
+	"slack-backer-upper/slack"
 	"slack-backer-upper/sqlite"
 	"strconv"
 	"time"
@@ -60,10 +61,20 @@ func (a *archiveViewer) getMessages(res http.ResponseWriter, req *http.Request) 
 		return
 	}
 	to := time.Unix(0, toMillis*1e6)
-	messages, err := a.storage.GetMessages(channel, from, to)
+	parents, err := a.storage.GetParentMessages(channel, from, to)
 	if err != nil {
 		http.Error(res, fmt.Sprintf("Error getting messages: %v", err), http.StatusInternalServerError)
 		return
+	}
+	messages := make([]slack.ParentMessage, len(parents))
+	for i, p := range parents {
+		messages[i] = slack.ParentMessageFromStored(p)
+		replies, err := a.storage.GetThreadReplies(channel, p.Timestamp)
+		if err != nil {
+			http.Error(res, fmt.Sprintf("Error getting messages: %v", err), http.StatusInternalServerError)
+			return
+		}
+		messages[i].Thread = replies
 	}
 	json.NewEncoder(res).Encode(messages)
 }
