@@ -33,6 +33,7 @@
         <select id="channel" onchange="return tryLoadMessages()">
           <option value="" selected>Select a channel</option>
         </select>
+        <img src="/static/loading.gif" id="loading" alt="loading..." style="display: none; margin-left: 10px">
       </div>
       <div style="margin-left: auto">
         <label for="from">From:</label>
@@ -47,6 +48,9 @@
       </div>
       <div class="alert alert-info" id="select-params">
         Select a channel and time range to load messages.
+      </div>
+      <div class="alert alert-info alert-dismissible" id="nomessages" style="display:none">
+        No messages found.
       </div>
       <div class="container" id="messages"></div>
     </div>

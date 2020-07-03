@@ -51,27 +51,31 @@ function renderMessage(message) {
     }
   }
   if (message.reacts) {
+    let reaccContainer = document.createElement("div");
     for (let name of Object.keys(message.reacts)) {
       let reacc = document.createElement("span");
       reacc.innerText = `:${name}: (${message.reacts[name].length})`
       reacc.style.marginRight = "20px";
-      msgContainer.appendChild(reacc);
+      reaccContainer.appendChild(reacc);
     }
+    msgContainer.appendChild(reaccContainer);
   }
   return msgContainer;
 }
 
 function loadMessages(channel, from, to) {
+  document.getElementById("loading").style.display = "";
+  document.getElementById("select-params").style.display = "none";
+  document.getElementById("nomessages").style.display = "none";
   fetch(`/messages?channel=${channel}&from=${from.getTime()}&to=${to.getTime()}`).then((response) => {
+    document.getElementById("loading").style.display = "none";
     if (!response.ok) {
       document.getElementById("error").style.display = "block";
-      document.getElementById("select-params").style.display = "none";
       throw new Error(`GET /messages failed: ${response.status} ${response.statusText}`);
     }
     return response.json();
   }).then((messages) => {
     document.getElementById("error").style.display = "none";
-    document.getElementById("select-params").style.display = "none";
     for (let message of messages) {
       let msgContainer = renderMessage(message);
       if (message.thread) {
@@ -105,6 +109,9 @@ function loadMessages(channel, from, to) {
       }
       msgContainer.style.marginBottom = "20px";
       document.getElementById("messages").appendChild(msgContainer);
+    }
+    if (messages.length === 0) {
+      document.getElementById("nomessages").style.display = "";
     }
   });
 }
