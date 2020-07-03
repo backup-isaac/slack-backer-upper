@@ -16,6 +16,51 @@ function populateChannels() {
   });
 }
 
+function renderMessage(message) {
+  let msgContainer = document.createElement("div");
+  let msgTime = document.createElement("span");
+  const time = new Date(message.timestamp * 1000);
+  msgTime.innerText = time.getFullYear().toString().padStart(4, "0") + "-"
+    + (time.getMonth() + 1).toString().padStart(2, "0") + "-"
+    + time.getDate().toString().padStart(2, "0") + " "
+    + time.getHours().toString().padStart(2, "0") + ":"
+    + time.getMinutes().toString().padStart(2, "0");
+  msgContainer.appendChild(msgTime);
+  let msgUser = document.createElement("strong");
+  msgUser.style.marginLeft = "20px";
+  msgUser.innerText = message.user;
+  msgContainer.appendChild(msgUser);
+  let msgBody = document.createElement("p");
+  msgBody.innerText = message.text;
+  msgContainer.appendChild(msgBody);
+  if (message.attachments) {
+    for (let attachment of message.attachments) {
+      let div = document.createElement("div");
+      let attach;
+      if (attachment.from_url) {
+        attach = document.createElement("a");
+        attach.innerText = attachment.title || attachment.from_url;
+        attach.href = attachment.from_url;
+      } else {
+        attach = document.createElement("p");
+        attach.innerText = attachment.fallback;
+      }
+      div.appendChild(attach);
+      div.style.marginLeft = "40px";
+      msgContainer.appendChild(div);
+    }
+  }
+  if (message.reacts) {
+    for (let name of Object.keys(message.reacts)) {
+      let reacc = document.createElement("span");
+      reacc.innerText = `:${name}: (${message.reacts[name].length})`
+      reacc.style.marginRight = "20px";
+      msgContainer.appendChild(reacc);
+    }
+  }
+  return msgContainer;
+}
+
 function loadMessages(channel, from, to) {
   fetch(`/messages?channel=${channel}&from=${from.getTime()}&to=${to.getTime()}`).then((response) => {
     if (!response.ok) {
@@ -28,46 +73,35 @@ function loadMessages(channel, from, to) {
     document.getElementById("error").style.display = "none";
     document.getElementById("select-params").style.display = "none";
     for (let message of messages) {
-      let msgContainer = document.createElement("div");
-      let msgTime = document.createElement("span");
-      const time = new Date(message.timestamp * 1000);
-      msgTime.innerText = time.getFullYear().toString().padStart(4, "0") + "-"
-        + (time.getMonth() + 1).toString().padStart(2, "0") + "-"
-        + time.getDate().toString().padStart(2, "0") + " "
-        + time.getHours().toString().padStart(2, "0") + ":"
-        + time.getMinutes().toString().padStart(2, "0");
-      msgContainer.appendChild(msgTime);
-      let msgUser = document.createElement("strong");
-      msgUser.style.marginLeft = "20px";
-      msgUser.innerText = message.user;
-      msgContainer.appendChild(msgUser);
-      let msgBody = document.createElement("p");
-      msgBody.innerText = message.text;
-      msgContainer.appendChild(msgBody);
-      if (message.attachments) {
-        for (let attachment of message.attachments) {
-          let div = document.createElement("div");
-          let attach;
-          if (attachment.from_url) {
-            attach = document.createElement("a");
-            attach.innerText = attachment.title || attachment.from_url;
-            attach.href = attachment.from_url;
+      let msgContainer = renderMessage(message);
+      if (message.thread) {
+        let showThread = document.createElement("button");
+        const showText = `Show ${message.thread.length} repl${message.thread.length === 1 ? "y" : "ies"}`;
+        const hideText = `Hide ${message.thread.length} repl${message.thread.length === 1 ? "y" : "ies"}`;
+        showThread.innerText = showText;
+        let threadMessages = document.createElement("div");
+        threadMessages.style.display = "none";
+        showThread.onclick = () => {
+          if (threadMessages.style.display === "none") {
+            threadMessages.style.display = "block";
+            if (threadMessages.children.length === 0) {
+              for (let reply of message.thread) {
+                let replyContainer = renderMessage(reply);
+                replyContainer.style.marginBottom = "10px";
+                threadMessages.appendChild(replyContainer);
+              }
+            }
+            showThread.innerText = hideText;
           } else {
-            attach = document.createElement("p");
-            attach.innerText = attachment.fallback;
+            threadMessages.style.display = "none";
+            showThread.innerText = showText;
           }
-          div.appendChild(attach);
-          div.style.marginLeft = "40px";
-          msgContainer.appendChild(div);
-        }
-      }
-      if (message.reacts) {
-        for (let name of Object.keys(message.reacts)) {
-          let reacc = document.createElement("span");
-          reacc.innerText = `:${name}: (${message.reacts[name].length})`
-          reacc.style.marginRight = "20px";
-          msgContainer.appendChild(reacc);
-        }
+        };
+        showThread.style.marginLeft = "40px";
+        showThread.style.marginBottom = "10px";
+        threadMessages.style.marginLeft = "40px";
+        msgContainer.appendChild(showThread);
+        msgContainer.appendChild(threadMessages);
       }
       msgContainer.style.marginBottom = "20px";
       document.getElementById("messages").appendChild(msgContainer);
