@@ -41,11 +41,14 @@
         <input type="date" id="to" onchange="return tryLoadMessages()"/>
       </div>
     </div>
-  </div>
-  <div class="alert alert-danger alert-dismissible" id="error" style="margin: 20px; display:none">
-    An error occurred, please refresh.
-  </div>
-  <div class="alert alert-info" id="select-params" style="margin: 20px">
-    Select a channel and time range to load messages.
+    <div class="panel-body" style="margin: 20px">
+      <div class="alert alert-danger alert-dismissible" id="error" style="display:none">
+        An error occurred, please refresh.
+      </div>
+      <div class="alert alert-info" id="select-params">
+        Select a channel and time range to load messages.
+      </div>
+      <div class="container" id="messages"></div>
+    </div>
   </div>
 </body>

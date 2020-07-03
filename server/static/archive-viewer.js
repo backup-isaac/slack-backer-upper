@@ -25,7 +25,14 @@ function loadMessages(channel, from, to) {
       return response.text();
     }
     return response.json();
-  }).then(console.log);
+  }).then((messages) => {
+    document.getElementById("select-params").style.display = "none";
+    for (let message of messages) {
+      let text = document.createElement("p");
+      text.innerText = JSON.stringify(message);
+      document.getElementById("messages").appendChild(text);
+    }
+  });
 }
 
 let selectedChannel = "";
@@ -55,8 +62,9 @@ function tryLoadMessages() {
       && to.getTime() === selectedTo.getTime())) {
     return;
   }
+  document.getElementById("messages").textContent = "";
+  loadMessages(channel, from, to);
   selectedChannel = channel;
   selectedFrom = from;
   selectedTo = to;
-  loadMessages(channel, from, to);
 }
