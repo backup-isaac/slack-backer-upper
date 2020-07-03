@@ -14,7 +14,8 @@ func initializeDb() (*sql.DB, error) {
 	}
 	if _, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS messages
-			(channel TEXT NOT NULL, timestamp TEXT NOT NULL, txt TEXT, user TEXT, attachments TEXT, reacts TEXT, children TEXT);
+			(channel TEXT NOT NULL, timestamp TEXT NOT NULL, txt TEXT, user TEXT,
+			attachments TEXT, reacts TEXT, parent TEXT, top_level BOOLEAN);
 		CREATE TABLE IF NOT EXISTS users
 			(id TEXT, real_name TEXT, display_name TEXT);
 	`); err != nil {

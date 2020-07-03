@@ -1,6 +1,8 @@
 package slack
 
-import "regexp"
+import (
+	"regexp"
+)
 
 // Attachment is what we care about from attachments
 // Also goes in the DB
@@ -28,10 +30,9 @@ type StoredMessage struct {
 	Text            string
 	User            string
 	ParentTimestamp string
-	Subtype         string
+	DisplayTopLevel bool
 	Attachments     []Attachment
 	Reacts          map[string][]string
-	Thread          []string
 }
 
 // RawMessage is what we care about from Slack
@@ -90,8 +91,11 @@ func FilterRawMessage(message RawMessage, users map[string]StoredUser) StoredMes
 			return "@<unknown>"
 		}),
 		User:            userid,
-		ParentTimestamp: message.ParentTimestamp,
-		Subtype:         message.Subtype,
+		DisplayTopLevel: message.ParentTimestamp == "" || message.ParentTimestamp == message.Timestamp || message.Subtype == "thread_broadcast",
+	}
+
+	if message.ParentTimestamp != "" && message.ParentTimestamp != message.Timestamp {
+		ret.ParentTimestamp = message.ParentTimestamp
 	}
 
 	attachments := make([]Attachment, 0, 4)

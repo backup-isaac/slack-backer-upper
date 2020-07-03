@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path"
-	"sort"
 	"strings"
 
 	"slack-backer-upper/slack"
@@ -63,7 +62,7 @@ func importChannel(
 		resultsChannel <- err
 		return
 	}
-	channelMessages := make(map[string]slack.StoredMessage)
+	channelMessages := make([]slack.StoredMessage, 0, 64)
 	for _, file := range files {
 		fileIn, err := ioutil.ReadFile(path.Join(inPath, file.Name()))
 		if err != nil {
@@ -78,31 +77,11 @@ func importChannel(
 		}
 		for _, beegMsg := range messagesIn {
 			msg := slack.FilterRawMessage(beegMsg, users)
-			if msg.ParentTimestamp != "" && msg.ParentTimestamp != msg.Timestamp {
-				parent, ok := channelMessages[msg.ParentTimestamp]
-				if !ok {
-					channelMessages[msg.ParentTimestamp] = slack.StoredMessage{
-						Timestamp: msg.ParentTimestamp,
-						Thread:    []string{msg.Timestamp},
-					}
-				} else {
-					parent.Thread = append(parent.Thread, msg.Timestamp)
-					sort.Strings(parent.Thread)
-					channelMessages[msg.ParentTimestamp] = parent
-				}
-			} else {
-				msg.Thread = []string{}
-			}
-			channelMessages[msg.Timestamp] = msg
+			channelMessages = append(channelMessages, msg)
 		}
 	}
 	for _, msg := range channelMessages {
-		if msg.User == "" && msg.Text == "" && msg.Attachments == nil {
-			if err = db.UpdateMessage(strings.TrimSuffix(channelName, ".json"), msg); err != nil {
-				resultsChannel <- err
-				return
-			}
-		} else if err = db.InsertMessage(strings.TrimSuffix(channelName, ".json"), msg); err != nil {
+		if err = db.InsertMessage(strings.TrimSuffix(channelName, ".json"), msg); err != nil {
 			resultsChannel <- err
 			return
 		}

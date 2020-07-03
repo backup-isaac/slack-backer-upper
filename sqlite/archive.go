@@ -5,16 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"slack-backer-upper/slack"
-	"strings"
 )
 
 // ArchiveStorage is a handle to the database plus prepared statements for
 // adding to the archive
 type ArchiveStorage struct {
-	db             *sql.DB
-	addMessage     *sql.Stmt
-	addUser        *sql.Stmt
-	updateChildren *sql.Stmt
+	db         *sql.DB
+	addMessage *sql.Stmt
+	addUser    *sql.Stmt
 }
 
 // Close closes the storage hadle
@@ -23,9 +21,6 @@ func (s *ArchiveStorage) Close() error {
 		return err
 	}
 	if err := s.addUser.Close(); err != nil {
-		return err
-	}
-	if err := s.updateChildren.Close(); err != nil {
 		return err
 	}
 	return s.db.Close()
@@ -38,7 +33,7 @@ func NewArchiveStorage() (ArchiveStorage, error) {
 	if err != nil {
 		return ArchiveStorage{}, err
 	}
-	addMessage, err := db.Prepare("INSERT INTO messages VALUES (?, ?, ?, ?, ?, ?, ?)")
+	addMessage, err := db.Prepare("INSERT INTO messages VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		db.Close()
 		return ArchiveStorage{}, err
@@ -49,33 +44,11 @@ func NewArchiveStorage() (ArchiveStorage, error) {
 		db.Close()
 		return ArchiveStorage{}, err
 	}
-	updateChildren, err := db.Prepare(`
-		UPDATE messages SET children = (
-			SELECT children FROM messages WHERE channel = ? AND timestamp = ?
-		) || ',' || ? WHERE channel = ? AND timestamp = ?;
-	`)
-	if err != nil {
-		addMessage.Close()
-		addUser.Close()
-		db.Close()
-		return ArchiveStorage{}, err
-	}
 	return ArchiveStorage{
-		db:             db,
-		addMessage:     addMessage,
-		addUser:        addUser,
-		updateChildren: updateChildren,
+		db:         db,
+		addMessage: addMessage,
+		addUser:    addUser,
 	}, nil
-}
-
-// UpdateMessage updates a message in the DB with msg's new children
-func (s *ArchiveStorage) UpdateMessage(channelName string, msg slack.StoredMessage) error {
-	if _, err := s.updateChildren.Exec(
-		channelName, msg.Timestamp, strings.Join(msg.Thread, ","), channelName, msg.Timestamp,
-	); err != nil {
-		return fmt.Errorf("Error updating message %#v: %v", msg, err)
-	}
-	return nil
 }
 
 // InsertMessage inserts msg into the DB associated with channelName
@@ -89,7 +62,7 @@ func (s *ArchiveStorage) InsertMessage(channelName string, msg slack.StoredMessa
 		return err
 	}
 	if _, err = s.addMessage.Exec(
-		channelName, msg.Timestamp, msg.Text, msg.User, attach, reacc, strings.Join(msg.Thread, ","),
+		channelName, msg.Timestamp, msg.Text, msg.User, attach, reacc, msg.ParentTimestamp, msg.DisplayTopLevel,
 	); err != nil {
 		return fmt.Errorf("Error inserting new message %#v: %v", msg, err)
 	}
