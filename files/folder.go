@@ -81,7 +81,7 @@ func importChannel(
 		}
 	}
 	for _, msg := range channelMessages {
-		if err = db.InsertMessage(strings.TrimSuffix(channelName, ".json"), msg); err != nil {
+		if err = db.InsertMessage(channelName, msg); err != nil {
 			resultsChannel <- err
 			return
 		}
