@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"path"
 	"runtime"
 	"slack-backer-upper/slack"
@@ -33,52 +34,62 @@ func (a *archiveViewer) listChannels(res http.ResponseWriter, req *http.Request)
 	json.NewEncoder(res).Encode(channels)
 }
 
-func (a *archiveViewer) getMessages(res http.ResponseWriter, req *http.Request) {
-	channel := req.URL.Query().Get("channel")
+func parseGetMessageParams(query url.Values) (string, int64, int64, error) {
+	channel := query.Get("channel")
 	if channel == "" {
-		http.Error(res, fmt.Sprintf("Missing channel"), http.StatusBadRequest)
-		return
+		return "", 0, 0, fmt.Errorf("Missing channel")
 	}
-	fromStr := req.URL.Query().Get("from")
+	fromStr := query.Get("from")
 	if fromStr == "" {
-		http.Error(res, fmt.Sprintf("Missing from"), http.StatusBadRequest)
-		return
+		return "", 0, 0, fmt.Errorf("Missing from")
 	}
 	fromMillis, err := strconv.ParseInt(fromStr, 10, 64)
 	if err != nil {
-		http.Error(res, fmt.Sprintf("Invalid from"), http.StatusBadRequest)
-		return
+		return "", 0, 0, fmt.Errorf("Invalid from: %v", err)
 	}
-	from := time.Unix(0, fromMillis*1e6)
-	toStr := req.URL.Query().Get("to")
+	toStr := query.Get("to")
 	if toStr == "" {
-		http.Error(res, fmt.Sprintf("Missing to"), http.StatusBadRequest)
-		return
+		return "", 0, 0, fmt.Errorf("Missing to")
 	}
 	toMillis, err := strconv.ParseInt(toStr, 10, 64)
 	if err != nil {
-		http.Error(res, fmt.Sprintf("Invalid to"), http.StatusBadRequest)
-		return
+		return "", 0, 0, fmt.Errorf("Invalid to: %v", err)
 	}
-	to := time.Unix(0, toMillis*1e6)
+	return channel, fromMillis, toMillis, nil
+}
+
+func (a *archiveViewer) queryMessages(channel string, from, to time.Time) ([]slack.ParentMessage, error) {
 	parents, err := a.storage.GetParentMessages(channel, from, to)
 	if err != nil {
-		http.Error(res, fmt.Sprintf("Error getting messages: %v", err), http.StatusInternalServerError)
-		return
+		return nil, err
 	}
 	messages := make([]slack.ParentMessage, len(parents))
 	for i, p := range parents {
 		messages[i], err = slack.ParentMessageFromStored(p)
 		if err != nil {
-			http.Error(res, fmt.Sprintf("Error getting messages: %v", err), http.StatusInternalServerError)
-			return
+			return nil, err
 		}
 		replies, err := a.storage.GetThreadReplies(channel, p.Timestamp)
 		if err != nil {
-			http.Error(res, fmt.Sprintf("Error getting messages: %v", err), http.StatusInternalServerError)
-			return
+			return nil, err
 		}
 		messages[i].Thread = replies
+	}
+	return messages, nil
+}
+
+func (a *archiveViewer) getMessages(res http.ResponseWriter, req *http.Request) {
+	channel, fromMillis, toMillis, err := parseGetMessageParams(req.URL.Query())
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+	from := time.Unix(0, fromMillis*1e6)
+	to := time.Unix(0, toMillis*1e6)
+	messages, err := a.queryMessages(channel, from, to)
+	if err != nil {
+		http.Error(res, fmt.Sprintf("Error getting messages: %v", err), http.StatusInternalServerError)
+		return
 	}
 	json.NewEncoder(res).Encode(messages)
 }
