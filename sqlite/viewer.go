@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"slack-backer-upper/slack"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -118,11 +120,18 @@ func (s *ViewerStorage) GetThreadReplies(channel string, parentTimestamp string)
 	for rows.Next() {
 		var msg slack.ThreadMessage
 		var attachJSON, reactsJSON []byte
+		var timestampString string
 		if err = rows.Scan(
-			&msg.Timestamp, &msg.Text, &msg.User, &attachJSON, &reactsJSON, &msg.SentToChannel,
+			&timestampString, &msg.Text, &msg.User, &attachJSON, &reactsJSON, &msg.SentToChannel,
 		); err != nil {
 			return nil, err
 		}
+		splitTimestamp := strings.Split(timestampString, ".")
+		timestamp, err := strconv.ParseUint(splitTimestamp[0], 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		msg.Timestamp = timestamp
 		if err = json.Unmarshal(attachJSON, &msg.Attachments); err != nil {
 			return nil, err
 		}

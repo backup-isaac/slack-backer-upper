@@ -68,7 +68,11 @@ func (a *archiveViewer) getMessages(res http.ResponseWriter, req *http.Request) 
 	}
 	messages := make([]slack.ParentMessage, len(parents))
 	for i, p := range parents {
-		messages[i] = slack.ParentMessageFromStored(p)
+		messages[i], err = slack.ParentMessageFromStored(p)
+		if err != nil {
+			http.Error(res, fmt.Sprintf("Error getting messages: %v", err), http.StatusInternalServerError)
+			return
+		}
 		replies, err := a.storage.GetThreadReplies(channel, p.Timestamp)
 		if err != nil {
 			http.Error(res, fmt.Sprintf("Error getting messages: %v", err), http.StatusInternalServerError)

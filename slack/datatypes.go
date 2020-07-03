@@ -33,7 +33,7 @@ type StoredMessage struct {
 
 // ThreadMessage is returned from the API / to the front end
 type ThreadMessage struct {
-	Timestamp     string              `json:"timestamp"`
+	Timestamp     uint64              `json:"timestamp"`
 	Text          string              `json:"text"`
 	User          string              `json:"user"`
 	Attachments   []Attachment        `json:"attachments"`
@@ -43,7 +43,7 @@ type ThreadMessage struct {
 
 // ParentMessage is returned from the API / to the front end
 type ParentMessage struct {
-	Timestamp   string              `json:"timestamp"`
+	Timestamp   uint64              `json:"timestamp"`
 	Text        string              `json:"text"`
 	User        string              `json:"user"`
 	Attachments []Attachment        `json:"attachments"`

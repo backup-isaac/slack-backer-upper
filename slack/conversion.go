@@ -1,6 +1,10 @@
 package slack
 
-import "regexp"
+import (
+	"regexp"
+	"strconv"
+	"strings"
+)
 
 var (
 	isComment      = regexp.MustCompile("<@U[A-Z0-9]{8}> commented on .+")
@@ -79,12 +83,17 @@ func FilterRawMessage(message RawMessage, users map[string]StoredUser) StoredMes
 }
 
 // ParentMessageFromStored creates a ParentMessage from a StoredMessage
-func ParentMessageFromStored(message StoredMessage) ParentMessage {
-	return ParentMessage{
-		Timestamp: message.Timestamp,
-		Text: message.Text,
-		User: message.User,
-		Attachments: message.Attachments,
-		Reacts: message.Reacts,
+func ParentMessageFromStored(message StoredMessage) (ParentMessage, error) {
+	splitTimestamp := strings.Split(message.Timestamp, ".")
+	timestamp, err := strconv.ParseUint(splitTimestamp[0], 10, 64)
+	if err != nil {
+		return ParentMessage{}, err
 	}
+	return ParentMessage{
+		Timestamp:   timestamp,
+		Text:        message.Text,
+		User:        message.User,
+		Attachments: message.Attachments,
+		Reacts:      message.Reacts,
+	}, nil
 }
