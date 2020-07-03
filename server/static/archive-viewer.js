@@ -16,6 +16,18 @@ function populateChannels() {
   });
 }
 
+function loadMessages(channel, from, to) {
+  fetch(`/messages?channel=${channel}&from=${from.getTime()}&to=${to.getTime()}`).then((response) => {
+    if (!response.ok) {
+      document.getElementById("error").style.display = "block";
+      document.getElementById("select-params").style.display = "none";
+      console.error(`GET /messages failed: ${response.status} ${response.statusText}`);
+      return response.text();
+    }
+    return response.json();
+  }).then(console.log);
+}
+
 let selectedChannel = "";
 let selectedFrom = new Date(0);
 let selectedTo = new Date(0);
@@ -46,5 +58,5 @@ function tryLoadMessages() {
   selectedChannel = channel;
   selectedFrom = from;
   selectedTo = to;
-  console.log(`load messages in ${channel} from ${from} to ${to}`);
+  loadMessages(channel, from, to);
 }
