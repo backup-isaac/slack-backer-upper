@@ -56,8 +56,8 @@ top level field | `ParentMessage` array | The messages from the channel
 GET /messages?channel=announcements&from=1588392000000&to=1593662400000
 200 OK
 [{
-  attachments: null,
-  reacts: {
+  "attachments": null,
+  "reacts": {
     "peak-performance": ["Ryan Babaie"],
     "sad-solar-boi": ["Ryan Babaie"],
     "sr3": [
@@ -69,31 +69,31 @@ GET /messages?channel=announcements&from=1588392000000&to=1593662400000
     ],
     "yeet": ["Joshua Hoffman"]
   },
-  text: "Hello solar raycers! If you are one of our wonderful new  graduates, please reacc to this!",
-  thread: null,
-  timestamp: 1588412758,
-  user: "AJ Wasserman"
+  "text": "Hello solar raycers! If you are one of our wonderful new  graduates, please reacc to this!",
+  "thread": null,
+  "timestamp": 1588412758,
+  "user": "AJ Wasserman"
 }, {
-  attachments: null,
-  reacts: null,
-  text: "<!channel> hey all! If you are a new grad and didn't reacc to my message above, please do!",
-  thread: [{
-    attachments: null,
-    reacts: null,
-    sent: false,
-    text: "@ryan.babaie @Joshua Hoffman @Tara Chan",
-    timestamp: 1588557488
-    user: "Matthew Marting"
+  "attachments": null,
+  "reacts": null,
+  "text": "<!channel> hey all! If you are a new grad and didn't reacc to my message above, please do!",
+  "thread": [{
+    "attachments": null,
+    "reacts": null,
+    "sent": false,
+    "text": "@ryan.babaie @Joshua Hoffman @Tara Chan",
+    "timestamp": 1588557488,
+    "user": "Matthew Marting"
   }, {
-    attachments: null,
-    reacts: null,
-    sent: false,
-    text: "Ty for the save. Wasnt paying attention May 2nd.",
-    timestamp: 1588676894,
-    user: "Joshua Hoffman"
-  }]
-  timestamp: 1588477847,
-​​  user: "AJ Wasserman"
+    "attachments": null,
+    "reacts": null,
+    "sent": false,
+    "text": "Ty for the save. Wasnt paying attention May 2nd.",
+    "timestamp": 1588676894,
+    "user": "Joshua Hoffman"
+  }],
+  "timestamp": 1588477847,
+​​  "user": "AJ Wasserman"
 }]
 ```
 
