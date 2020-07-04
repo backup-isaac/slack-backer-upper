@@ -97,20 +97,20 @@ func (a *archiveViewer) getMessages(res http.ResponseWriter, req *http.Request) 
 }
 
 // Start registers API routes then starts the HTTP server
-func Start() {
+func Start() error {
 	router := mux.NewRouter()
 	log.Println("Starting HTTP server on :8080...")
 
 	_, filename, _, ok := runtime.Caller(0)
 	if !ok {
-		log.Fatal("Could not find runtime caller")
+		return fmt.Errorf("Could not find runtime caller")
 	}
 	router.PathPrefix("/static/").Handler(http.FileServer(http.Dir(path.Dir(filename))))
 	router.HandleFunc("/", defaultPage)
 
 	storage, err := sqlite.NewViewerStorage()
 	if err != nil {
-		log.Fatalf("Error initializing server: %v\n", err)
+		return fmt.Errorf("Error initializing server: %v", err)
 	}
 	defer storage.Close()
 
@@ -123,11 +123,16 @@ func Start() {
 	sigChannel := make(chan os.Signal)
 	signal.Notify(sigChannel)
 
-	select {
-	case s := <-sigChannel:
-		storage.Close()
-		log.Fatalf("Received signal %v. Aborting...", s)
-	}
+	serveResult := make(chan error)
 
-	log.Fatalf("Error serving HTTP: %v\n", http.ListenAndServe(":8080", router))
+	go func() {
+		serveResult <- http.ListenAndServe(":8080", router)
+	}()
+
+	select {
+	case err = <-serveResult:
+		return fmt.Errorf("Error serving HTTP: %v", err)
+	case s := <-sigChannel:
+		return fmt.Errorf("Received signal %v", s)
+	}
 }

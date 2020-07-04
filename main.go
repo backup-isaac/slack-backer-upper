@@ -29,7 +29,7 @@ func main() {
 		if err := files.ImportFolder(*dirname); err != nil {
 			log.Printf("Error importing backup: %v\n", err)
 		}
-	} else {
-		server.Start()
+	} else if err := server.Start(); err != nil {
+		log.Fatal(err)
 	}
 }
