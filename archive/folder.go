@@ -8,11 +8,10 @@ import (
 	"strings"
 
 	"slack-backer-upper/slack"
-	"slack-backer-upper/storage"
 )
 
 // ImportFolder imports messages and users from the named folder
-func ImportFolder(name string) error {
+func (a *Archiver) ImportFolder(name string) error {
 	userFile, err := os.Open(path.Join(name, "users.json"))
 	if err != nil {
 		return err
@@ -22,11 +21,6 @@ func ImportFolder(name string) error {
 	if err != nil {
 		return fmt.Errorf("Error loading users: %v", err)
 	}
-	db, err := storage.NewArchiveStorage()
-	if err != nil {
-		return fmt.Errorf("Error initializing database: %v", err)
-	}
-	defer db.Close()
 	entries, err := ioutil.ReadDir(name)
 	if err != nil {
 		return fmt.Errorf("Error listing folder contents: %v", err)
@@ -37,11 +31,11 @@ func ImportFolder(name string) error {
 		if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
 			goroutines++
 			go func(fileName string) {
-				results <- loadFolder(db, name, fileName, users)
+				results <- a.loadFolder(name, fileName, users)
 			}(entry.Name())
 		}
 	}
-	if serr := db.InsertUsers(users); serr != nil {
+	if serr := a.storage.AddUsers(users); serr != nil {
 		err = serr
 	}
 	for i := 0; i < goroutines; i++ {
@@ -53,8 +47,7 @@ func ImportFolder(name string) error {
 	return err
 }
 
-func loadFolder(
-	db storage.ArchiveStorage,
+func (a *Archiver) loadFolder(
 	dirname string,
 	channelName string,
 	users map[string]slack.StoredUser,
@@ -78,7 +71,7 @@ func loadFolder(
 		channelMessages = append(channelMessages, messages...)
 	}
 	for _, msg := range channelMessages {
-		if err = db.InsertMessage(channelName, msg); err != nil {
+		if err = a.storage.AddMessage(channelName, msg); err != nil {
 			return err
 		}
 	}

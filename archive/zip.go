@@ -2,15 +2,12 @@ package archive
 
 import (
 	"archive/zip"
-	"fmt"
 	"os"
 	"slack-backer-upper/slack"
-	"slack-backer-upper/storage"
 	"strings"
 )
 
-func loadZipFiles(
-	db storage.ArchiveStorage,
+func (a *Archiver) loadZipFiles(
 	channelName string,
 	files []*zip.File,
 	users map[string]slack.StoredUser,
@@ -29,7 +26,7 @@ func loadZipFiles(
 		channelMessages = append(channelMessages, messages...)
 	}
 	for _, msg := range channelMessages {
-		if err := db.InsertMessage(channelName, msg); err != nil {
+		if err := a.storage.AddMessage(channelName, msg); err != nil {
 			return err
 		}
 	}
@@ -37,7 +34,7 @@ func loadZipFiles(
 }
 
 // ImportZip imports messages and users from the provided zip.Reader
-func ImportZip(reader zip.Reader) error {
+func (a *Archiver) ImportZip(reader zip.Reader) error {
 	var users slack.Users
 	files := make(map[string][]*zip.File)
 	for _, f := range reader.File {
@@ -62,22 +59,14 @@ func ImportZip(reader zip.Reader) error {
 		}
 	}
 
-	db, err := storage.NewArchiveStorage()
-	if err != nil {
-		return fmt.Errorf("Error initializing database: %v", err)
-	}
-	defer db.Close()
-
 	results := make(chan error)
 	for channelName, files := range files {
 		go func(channelName string, files []*zip.File) {
-			results <- loadZipFiles(db, channelName, files, users)
+			results <- a.loadZipFiles(channelName, files, users)
 		}(channelName, files)
 	}
 
-	if serr := db.InsertUsers(users); serr != nil {
-		err = serr
-	}
+	err := a.storage.AddUsers(users)
 	for i := 0; i < len(files); i++ {
 		completedErr := <-results
 		if completedErr != nil {
@@ -88,11 +77,11 @@ func ImportZip(reader zip.Reader) error {
 }
 
 // ImportZipFile imports messages and users from the provided zip file
-func ImportZipFile(src string) error {
+func (a *Archiver) ImportZipFile(src string) error {
 	r, err := zip.OpenReader(src)
 	if err != nil {
 		return err
 	}
 	defer r.Close()
-	return ImportZip(r.Reader)
+	return a.ImportZip(r.Reader)
 }

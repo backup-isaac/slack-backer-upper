@@ -11,26 +11,43 @@ import (
 	"os/signal"
 	"path"
 	"runtime"
-	"slack-backer-upper/archive"
 	"slack-backer-upper/slack"
-	"slack-backer-upper/storage"
 	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
 )
 
-// archiveViewer encapsulates the archive viewing API
-type archiveServer struct {
-	storage storage.ViewerStorage
+type serverStorage interface {
+	GetChannels() ([]string, error)
+	GetParentMessages(channelName string, from, to time.Time) ([]slack.StoredMessage, error)
+	GetThreadReplies(channelName, timestamp string) ([]slack.ThreadMessage, error)
+}
+
+type serverArchiver interface {
+	ImportZip(zip.Reader) error
+}
+
+// Server serves APIs from the archive
+type Server struct {
+	archiver serverArchiver
+	storage  serverStorage
+}
+
+// New creates a new Server with the provided Archiver and storage
+func New(a serverArchiver, s serverStorage) Server {
+	return Server{
+		archiver: a,
+		storage:  s,
+	}
 }
 
 func defaultPage(res http.ResponseWriter, req *http.Request) {
 	http.Redirect(res, req, "/static/index.html", http.StatusFound)
 }
 
-func (a *archiveServer) listChannels(res http.ResponseWriter, req *http.Request) {
-	channels, err := a.storage.ListChannels()
+func (s *Server) listChannels(res http.ResponseWriter, req *http.Request) {
+	channels, err := s.storage.GetChannels()
 	if err != nil {
 		http.Error(res, fmt.Sprintf("Error listing channels: %v", err), http.StatusInternalServerError)
 		return
@@ -62,8 +79,8 @@ func parseGetMessageParams(query url.Values) (string, int64, int64, error) {
 	return channel, fromMillis, toMillis, nil
 }
 
-func (a *archiveServer) queryMessages(channel string, from, to time.Time) ([]slack.ParentMessage, error) {
-	parents, err := a.storage.GetParentMessages(channel, from, to)
+func (s *Server) queryMessages(channel string, from, to time.Time) ([]slack.ParentMessage, error) {
+	parents, err := s.storage.GetParentMessages(channel, from, to)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +90,7 @@ func (a *archiveServer) queryMessages(channel string, from, to time.Time) ([]sla
 		if err != nil {
 			return nil, err
 		}
-		replies, err := a.storage.GetThreadReplies(channel, p.Timestamp)
+		replies, err := s.storage.GetThreadReplies(channel, p.Timestamp)
 		if err != nil {
 			return nil, err
 		}
@@ -82,7 +99,7 @@ func (a *archiveServer) queryMessages(channel string, from, to time.Time) ([]sla
 	return messages, nil
 }
 
-func (a *archiveServer) getMessages(res http.ResponseWriter, req *http.Request) {
+func (s *Server) getMessages(res http.ResponseWriter, req *http.Request) {
 	channel, fromMillis, toMillis, err := parseGetMessageParams(req.URL.Query())
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
@@ -90,7 +107,7 @@ func (a *archiveServer) getMessages(res http.ResponseWriter, req *http.Request) 
 	}
 	from := time.Unix(0, fromMillis*1e6)
 	to := time.Unix(0, toMillis*1e6)
-	messages, err := a.queryMessages(channel, from, to)
+	messages, err := s.queryMessages(channel, from, to)
 	if err != nil {
 		http.Error(res, fmt.Sprintf("Error getting messages: %v", err), http.StatusInternalServerError)
 		return
@@ -98,7 +115,11 @@ func (a *archiveServer) getMessages(res http.ResponseWriter, req *http.Request) 
 	json.NewEncoder(res).Encode(messages)
 }
 
-func (a *archiveServer) uploadZip(res http.ResponseWriter, req *http.Request) {
+func (s *Server) uploadZip(res http.ResponseWriter, req *http.Request) {
+	if err := req.ParseMultipartForm(1048576); err != nil {
+		http.Error(res, fmt.Sprintf("Error parsing multipart form: %v", err), http.StatusBadRequest)
+		return
+	}
 	for _, fh := range req.MultipartForm.File {
 		for _, f := range fh {
 			file, err := f.Open()
@@ -112,7 +133,7 @@ func (a *archiveServer) uploadZip(res http.ResponseWriter, req *http.Request) {
 				http.Error(res, fmt.Sprintf("Error parsing multipart form: %v", err), http.StatusBadRequest)
 				return
 			}
-			if err = archive.ImportZip(*z); err != nil {
+			if err = s.archiver.ImportZip(*z); err != nil {
 				http.Error(res, fmt.Sprintf("Error importing zip: %v", err), http.StatusBadRequest)
 				return
 			}
@@ -122,7 +143,7 @@ func (a *archiveServer) uploadZip(res http.ResponseWriter, req *http.Request) {
 }
 
 // Start registers API routes then starts the HTTP server
-func Start() error {
+func (s *Server) Start() error {
 	router := mux.NewRouter()
 	log.Println("Starting HTTP server on :8080...")
 
@@ -132,19 +153,9 @@ func Start() error {
 	}
 	router.PathPrefix("/static/").Handler(http.FileServer(http.Dir(path.Dir(filename))))
 	router.HandleFunc("/", defaultPage)
-
-	storage, err := storage.NewViewerStorage()
-	if err != nil {
-		return fmt.Errorf("Error initializing server: %v", err)
-	}
-	defer storage.Close()
-
-	a := archiveServer{
-		storage: storage,
-	}
-	router.HandleFunc("/channels", a.listChannels).Methods("GET")
-	router.HandleFunc("/messages", a.getMessages).Methods("GET")
-	router.HandleFunc("/upload", a.uploadZip).Methods("POST")
+	router.HandleFunc("/channels", s.listChannels).Methods("GET")
+	router.HandleFunc("/messages", s.getMessages).Methods("GET")
+	router.HandleFunc("/upload", s.uploadZip).Methods("POST")
 
 	sigChannel := make(chan os.Signal)
 	signal.Notify(sigChannel, os.Interrupt)
@@ -156,7 +167,7 @@ func Start() error {
 	}()
 
 	select {
-	case err = <-serveResult:
+	case err := <-serveResult:
 		return fmt.Errorf("Error serving HTTP: %v", err)
 	case s := <-sigChannel:
 		return fmt.Errorf("Received signal %v", s)

@@ -9,40 +9,33 @@ import (
 	"time"
 )
 
-// ViewerStorage is a handle to the database plus prepared statementst for
-// viewing archives
-type ViewerStorage struct {
+// ViewerDBHandle is a handle to the database plus resources
+// needed to handle getting information from it
+type ViewerDBHandle struct {
 	db          *sql.DB
 	getMessages *sql.Stmt
 	getReplies  *sql.Stmt
 }
 
-// Close closes the storage hadle
-func (s *ViewerStorage) Close() error {
-	if err := s.getMessages.Close(); err != nil {
+// Close closes resources specific to the ViewerDBHandle
+// but not the underlying DB itself
+func (d *ViewerDBHandle) Close() error {
+	if err := d.getMessages.Close(); err != nil {
 		return err
 	}
-	if err := s.getReplies.Close(); err != nil {
-		return err
-	}
-	return s.db.Close()
+	return d.getReplies.Close()
 }
 
-// NewViewerStorage creates and returns a handle to the initialized database,
+// Viewer creates and returns a handle to the initialized database,
 // creates the necessary tables, and prepares the necessary statements
-func NewViewerStorage() (ViewerStorage, error) {
-	db, err := getDB()
-	if err != nil {
-		return ViewerStorage{}, err
-	}
+func Viewer(db *sql.DB) (*ViewerDBHandle, error) {
 	getMessages, err := db.Prepare(`
 		SELECT timestamp, txt, user, attachments, reacts FROM messages
 			WHERE channel = ? AND timestamp >= ? AND timestamp < ? AND top_level = true AND parent = ""
 			ORDER BY timestamp;
 	`)
 	if err != nil {
-		db.Close()
-		return ViewerStorage{}, nil
+		return nil, err
 	}
 	getReplies, err := db.Prepare(`
 		SELECT timestamp, txt, user, attachments, reacts, top_level FROM messages
@@ -50,19 +43,18 @@ func NewViewerStorage() (ViewerStorage, error) {
 	`)
 	if err != nil {
 		getMessages.Close()
-		db.Close()
-		return ViewerStorage{}, nil
+		return nil, err
 	}
-	return ViewerStorage{
+	return &ViewerDBHandle{
 		db:          db,
 		getMessages: getMessages,
 		getReplies:  getReplies,
 	}, err
 }
 
-// ListChannels enumerates the channels in the storage
-func (s *ViewerStorage) ListChannels() ([]string, error) {
-	rows, err := s.db.Query("SELECT DISTINCT channel FROM messages ORDER BY channel")
+// GetChannels enumerates the channels in the storage
+func (d *ViewerDBHandle) GetChannels() ([]string, error) {
+	rows, err := d.db.Query("SELECT DISTINCT channel FROM messages ORDER BY channel")
 	if err != nil {
 		return nil, err
 	}
@@ -81,10 +73,10 @@ func (s *ViewerStorage) ListChannels() ([]string, error) {
 // GetParentMessages gets the parent messages in a channel
 // (i.e. messages not replying in a thread)
 // during the specified time interval
-func (s *ViewerStorage) GetParentMessages(channel string, from, to time.Time) ([]slack.StoredMessage, error) {
+func (d *ViewerDBHandle) GetParentMessages(channel string, from, to time.Time) ([]slack.StoredMessage, error) {
 	fromSecs := float64(from.UnixNano()) / 1e9
 	toSecs := float64(to.UnixNano()) / 1e9
-	rows, err := s.getMessages.Query(channel, fromSecs, toSecs)
+	rows, err := d.getMessages.Query(channel, fromSecs, toSecs)
 	if err != nil {
 		return nil, err
 	}
@@ -110,8 +102,8 @@ func (s *ViewerStorage) GetParentMessages(channel string, from, to time.Time) ([
 }
 
 // GetThreadReplies gets the replies to the specified message
-func (s *ViewerStorage) GetThreadReplies(channel string, parentTimestamp string) ([]slack.ThreadMessage, error) {
-	rows, err := s.getReplies.Query(channel, parentTimestamp)
+func (d *ViewerDBHandle) GetThreadReplies(channel string, parentTimestamp string) ([]slack.ThreadMessage, error) {
+	rows, err := d.getReplies.Query(channel, parentTimestamp)
 	if err != nil {
 		return nil, err
 	}

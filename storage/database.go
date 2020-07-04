@@ -2,23 +2,19 @@ package storage
 
 import (
 	"database/sql"
-	"sync"
 
 	// go database drivers require _ import
 	_ "github.com/mattn/go-sqlite3"
 )
 
-var dbLock sync.Mutex
-var db *sql.DB
+// Storage is an interface to persistent message storage
+type Storage interface {
+	Close() error
+}
 
-func getDB() (*sql.DB, error) {
-	dbLock.Lock()
-	defer dbLock.Unlock()
-	if db != nil {
-		return db, nil
-	}
-	var err error
-	db, err = sql.Open("sqlite3", "./slack.db?_journal=WAL")
+// New creates a new Storage backed by SQLite
+func New() (*sql.DB, error) {
+	db, err := sql.Open("sqlite3", "./slack.db?_journal=WAL")
 	if err != nil {
 		return nil, err
 	}

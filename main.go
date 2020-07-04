@@ -5,6 +5,7 @@ import (
 	"log"
 	"slack-backer-upper/archive"
 	"slack-backer-upper/server"
+	"slack-backer-upper/storage"
 )
 
 var (
@@ -14,15 +15,38 @@ var (
 
 func main() {
 	flag.Parse()
+
+	s, err := storage.New()
+	if err != nil {
+		log.Fatalf("Error initializing data storage: %v", err)
+	}
+	defer s.Close()
+
+	as, err := storage.Archiver(s)
+	if err != nil {
+		log.Fatalf("Error initializing archive storage: %v", err)
+	}
+	defer as.Close()
+	a := archive.New(as)
+
 	if *zipname != "" {
-		if err := archive.ImportZipFile(*zipname); err != nil {
+		if err := a.ImportZipFile(*zipname); err != nil {
 			log.Fatalf("Error unzipping file: %v\n", err)
 		}
 	} else if *dirname != "" {
-		if err := archive.ImportFolder(*dirname); err != nil {
-			log.Printf("Error importing backup: %v\n", err)
+		if err := a.ImportFolder(*dirname); err != nil {
+			log.Fatalf("Error importing backup: %v\n", err)
 		}
-	} else if err := server.Start(); err != nil {
-		log.Fatal(err)
+	} else {
+		vs, err := storage.Viewer(s)
+		if err != nil {
+			log.Fatalf("Error initializing viewer storage: %v", err)
+		}
+		defer vs.Close()
+		srv := server.New(&a, vs)
+
+		if err := srv.Start(); err != nil {
+			log.Fatal(err)
+		}
 	}
 }
