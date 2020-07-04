@@ -13,7 +13,6 @@ If a directory or zip file name is passed, the corresponding Slack backup is imp
 If neither option is provided, an HTTP server is started.
 
 Work in progress:
-- API endpoint for manually adding a workspace export
 - Automatic requests to the Slack API every day/week to make backups of new messages
 
 ## API
