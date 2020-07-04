@@ -27,7 +27,7 @@ func (d *ArchiveDBHandle) Close() error {
 // Archiver creates and returns a handle to the initialized database,
 // creates the necessary tables, and prepares the necessary statements
 func Archiver(db *sql.DB) (*ArchiveDBHandle, error) {
-	addMessage, err := db.Prepare("INSERT INTO messages VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+	addMessage, err := db.Prepare("INSERT OR IGNORE INTO messages VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return nil, err
 	}

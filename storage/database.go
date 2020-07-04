@@ -19,11 +19,14 @@ func New() (*sql.DB, error) {
 		return nil, err
 	}
 	if _, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS messages
-			(channel TEXT NOT NULL, timestamp TEXT NOT NULL, txt TEXT, user TEXT,
-			attachments TEXT, reacts TEXT, parent TEXT, top_level BOOLEAN);
-		CREATE TABLE IF NOT EXISTS users
-			(id TEXT, real_name TEXT, display_name TEXT);
+		CREATE TABLE IF NOT EXISTS messages (
+			channel TEXT NOT NULL, timestamp TEXT NOT NULL, txt TEXT, user TEXT,
+			attachments TEXT, reacts TEXT, parent TEXT, top_level BOOLEAN,
+			UNIQUE(channel, timestamp)
+		);
+		CREATE TABLE IF NOT EXISTS users (
+			id TEXT UNIQUE, real_name TEXT, display_name TEXT
+		);
 	`); err != nil {
 		db.Close()
 		return nil, err
