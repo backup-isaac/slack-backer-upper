@@ -97,6 +97,24 @@ GET /messages?channel=announcements&from=1588392000000&to=1593662400000
 }]
 ```
 
+### `POST /upload`
+Uploads ZIP files of Slack exports.
+
+#### `multipart/form-data` Request Body
+Field | Data type | Description
+-|-|-
+\<any name> | ZIP file | A file to upload
+
+#### Response
+Empty body on success
+
+#### Example
+```
+POST /upload
+foo.zip: <foo.zip contents>
+200 OK
+```
+
 ### Data Types
 
 #### `Attachment`
