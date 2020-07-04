@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
+	"os/signal"
 	"path"
 	"runtime"
 	"slack-backer-upper/slack"
@@ -111,11 +113,21 @@ func Start() {
 		log.Fatalf("Error initializing server: %v\n", err)
 	}
 	defer storage.Close()
+
 	a := archiveViewer{
 		storage: storage,
 	}
 	router.HandleFunc("/channels", a.listChannels).Methods("GET")
 	router.HandleFunc("/messages", a.getMessages).Methods("GET")
+
+	sigChannel := make(chan os.Signal)
+	signal.Notify(sigChannel)
+
+	select {
+	case s := <-sigChannel:
+		storage.Close()
+		log.Fatalf("Received signal %v. Aborting...", s)
+	}
 
 	log.Fatalf("Error serving HTTP: %v\n", http.ListenAndServe(":8080", router))
 }
