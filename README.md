@@ -41,7 +41,7 @@ Retrieves messages from a channel sorted in chronological order.
 
 #### URL Parameters
 Name | Data type | Required
--|-|-|-
+-|-|-
 channel | String | yes
 from | UNIX millisecond timestamp | yes
 to | UNIX millisecond timestamp | yes
