@@ -121,7 +121,7 @@ func Start() error {
 	router.HandleFunc("/messages", a.getMessages).Methods("GET")
 
 	sigChannel := make(chan os.Signal)
-	signal.Notify(sigChannel)
+	signal.Notify(sigChannel, os.Interrupt)
 
 	serveResult := make(chan error)
 

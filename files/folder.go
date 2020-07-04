@@ -1,9 +1,9 @@
 package files
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path"
 	"strings"
 
@@ -13,7 +13,12 @@ import (
 
 // ImportFolder imports messages and users from the named folder
 func ImportFolder(name string) error {
-	users, err := loadUsers(name)
+	userFile, err := os.Open(path.Join(name, "users.json"))
+	if err != nil {
+		return err
+	}
+	defer userFile.Close()
+	users, err := parseUsers(userFile)
 	if err != nil {
 		return fmt.Errorf("Error loading users: %v", err)
 	}
@@ -26,15 +31,14 @@ func ImportFolder(name string) error {
 	if err != nil {
 		return fmt.Errorf("Error listing folder contents: %v", err)
 	}
-	if err != nil {
-		return fmt.Errorf("Error preparing queries: %v", err)
-	}
 	results := make(chan error)
 	goroutines := 0
 	for _, entry := range entries {
 		if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
 			goroutines++
-			go importChannel(db, name, entry.Name(), users, results)
+			go func(fileName string) {
+				results <- loadFolder(db, name, fileName, users)
+			}(entry.Name())
 		}
 	}
 	if serr := db.InsertUsers(users); serr != nil {
@@ -49,66 +53,34 @@ func ImportFolder(name string) error {
 	return err
 }
 
-func importChannel(
+func loadFolder(
 	db sqlite.ArchiveStorage,
 	dirname string,
 	channelName string,
 	users map[string]slack.StoredUser,
-	resultsChannel chan error,
-) {
+) error {
 	inPath := path.Join(dirname, channelName)
 	files, err := ioutil.ReadDir(inPath)
 	if err != nil {
-		resultsChannel <- err
-		return
+		return err
 	}
 	channelMessages := make([]slack.StoredMessage, 0, 64)
-	for _, file := range files {
-		fileIn, err := ioutil.ReadFile(path.Join(inPath, file.Name()))
+	for _, f := range files {
+		file, err := os.Open(path.Join(inPath, f.Name()))
 		if err != nil {
-			resultsChannel <- err
-			return
+			return err
 		}
-		messagesIn := make([]slack.RawMessage, 0, 16)
-		err = json.Unmarshal(fileIn, &messagesIn)
+		defer file.Close()
+		messages, err := parseMessages(file, channelName, users)
 		if err != nil {
-			resultsChannel <- err
-			return
+			return nil
 		}
-		for _, beegMsg := range messagesIn {
-			msg := slack.FilterRawMessage(beegMsg, users)
-			channelMessages = append(channelMessages, msg)
-		}
+		channelMessages = append(channelMessages, messages...)
 	}
 	for _, msg := range channelMessages {
 		if err = db.InsertMessage(channelName, msg); err != nil {
-			resultsChannel <- err
-			return
+			return err
 		}
 	}
-	resultsChannel <- nil
-}
-
-func loadUsers(backupDir string) (map[string]slack.StoredUser, error) {
-	users := map[string]slack.StoredUser{
-		"USLACKBOT": {
-			RealName:    "Slackbot",
-			DisplayName: "Slackbot",
-		},
-	}
-	rawJSON, err := ioutil.ReadFile(path.Join(backupDir, "users.json"))
-	if err != nil {
-		return nil, err
-	}
-	userList := make([]slack.RawUser, 0, 128)
-	if err = json.Unmarshal(rawJSON, &userList); err != nil {
-		return nil, err
-	}
-	for _, user := range userList {
-		if user.Profile.DisplayName == "" {
-			user.Profile.DisplayName = user.Profile.RealName
-		}
-		users[user.ID] = user.Profile
-	}
-	return users, nil
+	return nil
 }

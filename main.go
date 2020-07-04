@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"log"
-	"os"
 	"slack-backer-upper/files"
 	"slack-backer-upper/server"
 )
@@ -16,14 +15,8 @@ var (
 func main() {
 	flag.Parse()
 	if *zipname != "" {
-		if err := files.Unzip(*zipname, "_archive"); err != nil {
+		if err := files.ImportZipFile(*zipname); err != nil {
 			log.Fatalf("Error unzipping file: %v\n", err)
-		}
-		if err := files.ImportFolder("_archive"); err != nil {
-			log.Printf("Error importing backup: %v\n", err)
-		}
-		if err := os.RemoveAll("_archive"); err != nil {
-			log.Fatalf("Error removing temp dir: %v\n", err)
 		}
 	} else if *dirname != "" {
 		if err := files.ImportFolder(*dirname); err != nil {

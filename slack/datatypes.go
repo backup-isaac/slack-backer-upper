@@ -75,3 +75,6 @@ type RawUser struct {
 	Profile StoredUser `json:"profile"`
 	ID      string     `json:"id"`
 }
+
+// Users is an alias for a map from user IDs to StoredUsers
+type Users map[string]StoredUser
