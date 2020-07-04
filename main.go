@@ -31,10 +31,16 @@ func slackBackerUpper() error {
 	a := archive.New(as)
 
 	if *zipname != "" {
-		return a.ImportZipFile(*zipname)
+		if err = a.ImportZipFile(*zipname); err != nil {
+			return fmt.Errorf("Error importing zip file: %v", err)
+		}
+		return nil
 	}
 	if *dirname != "" {
-		return a.ImportFolder(*dirname)
+		if err = a.ImportFolder(*dirname); err != nil {
+			return fmt.Errorf("Error importing folder: %v", err)
+		}
+		return nil
 	}
 	vs, err := storage.Viewer(s)
 	if err != nil {
@@ -46,5 +52,7 @@ func slackBackerUpper() error {
 }
 
 func main() {
-	log.Fatal(slackBackerUpper())
+	if err := slackBackerUpper(); err != nil {
+		log.Fatal(err)
+	}
 }

@@ -3,6 +3,7 @@ package archive
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"strings"
@@ -12,6 +13,7 @@ import (
 
 // ImportFolder imports messages and users from the named folder
 func (a *Archiver) ImportFolder(name string) error {
+	log.Printf("Importing from folder %s...", name)
 	userFile, err := os.Open(path.Join(name, "users.json"))
 	if err != nil {
 		return err
@@ -19,11 +21,11 @@ func (a *Archiver) ImportFolder(name string) error {
 	defer userFile.Close()
 	users, err := parseUsers(userFile)
 	if err != nil {
-		return fmt.Errorf("Error loading users: %v", err)
+		return fmt.Errorf("Error parsing users: %v", err)
 	}
 	entries, err := ioutil.ReadDir(name)
 	if err != nil {
-		return fmt.Errorf("Error listing folder contents: %v", err)
+		return err
 	}
 	results := make(chan error)
 	goroutines := 0
@@ -36,7 +38,7 @@ func (a *Archiver) ImportFolder(name string) error {
 		}
 	}
 	if serr := a.storage.AddUsers(users); serr != nil {
-		err = serr
+		err = fmt.Errorf("Error adding users: %v", serr)
 	}
 	for i := 0; i < goroutines; i++ {
 		completedErr := <-results
@@ -66,13 +68,13 @@ func (a *Archiver) loadFolder(
 		defer file.Close()
 		messages, err := parseMessages(file, channelName, users)
 		if err != nil {
-			return nil
+			return fmt.Errorf("Error parsing messages in %s: %v", file, err)
 		}
 		channelMessages = append(channelMessages, messages...)
 	}
 	for _, msg := range channelMessages {
 		if err = a.storage.AddMessage(channelName, msg); err != nil {
-			return err
+			return fmt.Errorf("Error adding message: %v", err)
 		}
 	}
 	return nil

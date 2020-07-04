@@ -56,7 +56,7 @@ func (d *ArchiveDBHandle) AddMessage(channelName string, msg slack.StoredMessage
 	if _, err = d.addMessage.Exec(
 		channelName, msg.Timestamp, msg.Text, msg.User, attach, reacc, msg.ParentTimestamp, msg.DisplayTopLevel,
 	); err != nil {
-		return fmt.Errorf("Error inserting new message %#v: %v", msg, err)
+		return err
 	}
 	return nil
 }
