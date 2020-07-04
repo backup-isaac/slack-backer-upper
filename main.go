@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"slack-backer-upper/archive"
 	"slack-backer-upper/server"
@@ -13,40 +14,37 @@ var (
 	zipname = flag.String("z", "", "a zip file to import")
 )
 
-func main() {
+func slackBackerUpper() error {
 	flag.Parse()
 
 	s, err := storage.New()
 	if err != nil {
-		log.Fatalf("Error initializing data storage: %v", err)
+		return fmt.Errorf("Error initializing data storage: %v", err)
 	}
 	defer s.Close()
 
 	as, err := storage.Archiver(s)
 	if err != nil {
-		log.Fatalf("Error initializing archive storage: %v", err)
+		return fmt.Errorf("Error initializing archive storage: %v", err)
 	}
 	defer as.Close()
 	a := archive.New(as)
 
 	if *zipname != "" {
-		if err := a.ImportZipFile(*zipname); err != nil {
-			log.Fatalf("Error unzipping file: %v\n", err)
-		}
-	} else if *dirname != "" {
-		if err := a.ImportFolder(*dirname); err != nil {
-			log.Fatalf("Error importing backup: %v\n", err)
-		}
-	} else {
-		vs, err := storage.Viewer(s)
-		if err != nil {
-			log.Fatalf("Error initializing viewer storage: %v", err)
-		}
-		defer vs.Close()
-		srv := server.New(&a, vs)
-
-		if err := srv.Start(); err != nil {
-			log.Fatal(err)
-		}
+		return a.ImportZipFile(*zipname)
 	}
+	if *dirname != "" {
+		return a.ImportFolder(*dirname)
+	}
+	vs, err := storage.Viewer(s)
+	if err != nil {
+		return fmt.Errorf("Error initializing viewer storage: %v", err)
+	}
+	defer vs.Close()
+	srv := server.New(&a, vs)
+	return srv.Start()
+}
+
+func main() {
+	log.Fatal(slackBackerUpper())
 }
