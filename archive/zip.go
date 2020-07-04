@@ -60,6 +60,9 @@ func (a *Archiver) ImportZip(reader zip.Reader) error {
 			files[nameParts[0]] = append(files[nameParts[0]], f)
 		}
 	}
+	if users == nil {
+		return fmt.Errorf("Users file missing")
+	}
 
 	results := make(chan error)
 	for channelName, files := range files {

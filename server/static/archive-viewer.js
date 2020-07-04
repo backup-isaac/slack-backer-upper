@@ -1,8 +1,6 @@
 function populateChannels() {
   fetch("/channels").then((response) => {
     if (!response.ok) {
-      document.getElementById("error").style.display = "block";
-      document.getElementById("select-params").style.display = "none";
       throw new Error(`GET /channels failed: ${response.status} ${response.statusText}`);
     }
     return response.json();
@@ -13,6 +11,10 @@ function populateChannels() {
       option.text = `#${channel}`;
       document.getElementById("channel").appendChild(option);
     }
+  }).catch((error) => {
+    document.getElementById("error").style.display = "block";
+    document.getElementById("select-params").style.display = "none";
+    console.log(error);
   });
 }
 
@@ -68,13 +70,12 @@ function loadMessages(channel, from, to) {
   document.getElementById("select-params").style.display = "none";
   document.getElementById("nomessages").style.display = "none";
   fetch(`/messages?channel=${channel}&from=${from.getTime()}&to=${to.getTime()}`).then((response) => {
-    document.getElementById("loading").style.display = "none";
     if (!response.ok) {
-      document.getElementById("error").style.display = "block";
       throw new Error(`GET /messages failed: ${response.status} ${response.statusText}`);
     }
     return response.json();
   }).then((messages) => {
+    document.getElementById("loading").style.display = "none";
     document.getElementById("error").style.display = "none";
     for (let message of messages) {
       let msgContainer = renderMessage(message);
@@ -113,6 +114,10 @@ function loadMessages(channel, from, to) {
     if (messages.length === 0) {
       document.getElementById("nomessages").style.display = "";
     }
+  }).catch((error) => {
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("error").style.display = "block";
+    console.log(error);
   });
 }
 
@@ -148,4 +153,31 @@ function tryLoadMessages() {
   selectedChannel = channel;
   selectedFrom = from;
   selectedTo = to;
+}
+
+function uploadZip() {
+  const files = document.getElementById("upload").files;
+  if (files.length === 0) {
+    return;
+  }
+  const formData = new FormData();
+  for (let i = 0; i < files.length; i++) {
+    formData.append(i.toString(), files[i]);
+  }
+  document.getElementById("uploading").style.display = "";
+  document.getElementById("upload-error").style.visibility = "hidden";
+  fetch("/upload", {
+    method: "POST",
+    body: formData
+  }).then((response) => {
+    if (!response.ok) {
+      throw new Error(`POST /upload failed: ${response.status} ${response.statusText}`);
+    }
+    document.getElementById("uploading").style.display = "none";
+    document.getElementById("upload").value = "";
+  }).catch((error) => {
+    document.getElementById("uploading").style.display = "none";
+    document.getElementById("upload-error").style.visibility = "visible";
+    console.log(error);
+  });
 }

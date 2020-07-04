@@ -15,7 +15,7 @@
     label {
       margin-right: 5px;
     }
-    #options {
+    #options, #uploader {
       display: flex;
       align-items: center;
     }
@@ -27,7 +27,7 @@
 <body onload="return populateChannels()">
   <h1 style="text-align:center;">Slack Archive Viewer</h1>
   <div class="panel panel-default" style="margin: 20px;">
-    <div class="panel-heading" id="options" >
+    <div class="panel-heading" id="options">
       <div>
         <label for="channel">Channel:</label>
         <select id="channel" onchange="return tryLoadMessages()">
@@ -35,12 +35,20 @@
         </select>
         <img src="/static/loading.gif" id="loading" alt="loading..." style="display: none; margin-left: 10px">
       </div>
+      <!-- <button type="button" class="btn btn-success">Upload ZIP file</button> -->
       <div style="margin-left: auto">
         <label for="from">From:</label>
         <input type="date" id="from" onchange="return tryLoadMessages()"/>
         <label for="to">To:</label>
         <input type="date" id="to" onchange="return tryLoadMessages()"/>
       </div>
+    </div>
+    <div class="panel-heading" id="uploader">
+      <span id="upload-error" style="margin-left: auto; visibility: hidden; color: darkred">Upload failed</span>
+
+      <img src="/static/loading.gif" id="uploading" alt="uploading..." style="display: none">
+      <input type="file" id="upload" multiple="true" accept="application/zip" style="margin-left: 10px"/>
+      <button type="button" onclick="return uploadZip()" class="btn btn-success btn-sm">Upload ZIP</button>
     </div>
     <div class="panel-body">
       <div class="alert alert-danger alert-dismissible" id="error" style="display:none">
