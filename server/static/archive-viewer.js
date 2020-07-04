@@ -175,6 +175,7 @@ function uploadZip() {
     }
     document.getElementById("uploading").style.display = "none";
     document.getElementById("upload").value = "";
+    window.location.reload()
   }).catch((error) => {
     document.getElementById("uploading").style.display = "none";
     document.getElementById("upload-error").style.visibility = "visible";
