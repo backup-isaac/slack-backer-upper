@@ -11,7 +11,7 @@ import (
 	"path"
 	"runtime"
 	"slack-backer-upper/slack"
-	"slack-backer-upper/sqlite"
+	"slack-backer-upper/storage"
 	"strconv"
 	"time"
 
@@ -20,7 +20,7 @@ import (
 
 // archiveViewer encapsulates the archive viewing API
 type archiveViewer struct {
-	storage sqlite.ViewerStorage
+	storage storage.ViewerStorage
 }
 
 func defaultPage(res http.ResponseWriter, req *http.Request) {
@@ -108,7 +108,7 @@ func Start() error {
 	router.PathPrefix("/static/").Handler(http.FileServer(http.Dir(path.Dir(filename))))
 	router.HandleFunc("/", defaultPage)
 
-	storage, err := sqlite.NewViewerStorage()
+	storage, err := storage.NewViewerStorage()
 	if err != nil {
 		return fmt.Errorf("Error initializing server: %v", err)
 	}

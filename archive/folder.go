@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"slack-backer-upper/slack"
-	"slack-backer-upper/sqlite"
+	"slack-backer-upper/storage"
 )
 
 // ImportFolder imports messages and users from the named folder
@@ -22,7 +22,7 @@ func ImportFolder(name string) error {
 	if err != nil {
 		return fmt.Errorf("Error loading users: %v", err)
 	}
-	db, err := sqlite.NewArchiveStorage()
+	db, err := storage.NewArchiveStorage()
 	if err != nil {
 		return fmt.Errorf("Error initializing database: %v", err)
 	}
@@ -54,7 +54,7 @@ func ImportFolder(name string) error {
 }
 
 func loadFolder(
-	db sqlite.ArchiveStorage,
+	db storage.ArchiveStorage,
 	dirname string,
 	channelName string,
 	users map[string]slack.StoredUser,

@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"os"
 	"slack-backer-upper/slack"
-	"slack-backer-upper/sqlite"
+	"slack-backer-upper/storage"
 	"strings"
 )
 
 func loadZipFiles(
-	db sqlite.ArchiveStorage,
+	db storage.ArchiveStorage,
 	channelName string,
 	files []*zip.File,
 	users map[string]slack.StoredUser,
@@ -61,7 +61,7 @@ func importZip(reader zip.Reader) error {
 		}
 	}
 
-	db, err := sqlite.NewArchiveStorage()
+	db, err := storage.NewArchiveStorage()
 	if err != nil {
 		return fmt.Errorf("Error initializing database: %v", err)
 	}
