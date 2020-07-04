@@ -31,7 +31,7 @@ func (s *ViewerStorage) Close() error {
 // NewViewerStorage creates and returns a handle to the initialized database,
 // creates the necessary tables, and prepares the necessary statements
 func NewViewerStorage() (ViewerStorage, error) {
-	db, err := initializeDb()
+	db, err := getDB()
 	if err != nil {
 		return ViewerStorage{}, err
 	}

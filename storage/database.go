@@ -2,13 +2,23 @@ package storage
 
 import (
 	"database/sql"
+	"sync"
 
 	// go database drivers require _ import
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func initializeDb() (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", "./slack.db?_journal=WAL")
+var dbLock sync.Mutex
+var db *sql.DB
+
+func getDB() (*sql.DB, error) {
+	dbLock.Lock()
+	defer dbLock.Unlock()
+	if db != nil {
+		return db, nil
+	}
+	var err error
+	db, err = sql.Open("sqlite3", "./slack.db?_journal=WAL")
 	if err != nil {
 		return nil, err
 	}

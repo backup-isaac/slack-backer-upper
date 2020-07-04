@@ -29,7 +29,7 @@ func (s *ArchiveStorage) Close() error {
 // NewArchiveStorage creates and returns a handle to the initialized database,
 // creates the necessary tables, and prepares the necessary statements
 func NewArchiveStorage() (ArchiveStorage, error) {
-	db, err := initializeDb()
+	db, err := getDB()
 	if err != nil {
 		return ArchiveStorage{}, err
 	}

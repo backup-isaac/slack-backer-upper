@@ -36,7 +36,8 @@ func loadZipFiles(
 	return nil
 }
 
-func importZip(reader zip.Reader) error {
+// ImportZip imports messages and users from the provided zip.Reader
+func ImportZip(reader zip.Reader) error {
 	var users slack.Users
 	files := make(map[string][]*zip.File)
 	for _, f := range reader.File {
@@ -93,5 +94,5 @@ func ImportZipFile(src string) error {
 		return err
 	}
 	defer r.Close()
-	return importZip(r.Reader)
+	return ImportZip(r.Reader)
 }
