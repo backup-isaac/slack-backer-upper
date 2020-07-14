@@ -2,6 +2,7 @@ package storage
 
 import (
 	"database/sql"
+	"os"
 
 	// go database drivers require _ import
 	_ "github.com/mattn/go-sqlite3"
@@ -14,7 +15,12 @@ type Storage interface {
 
 // New creates a new Storage backed by SQLite
 func New() (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", "./slack.db?_journal=WAL")
+	dbFile := os.Getenv("SLACK_DB")
+	if dbFile == "" {
+		dbFile = "./slack.db"
+	}
+
+	db, err := sql.Open("sqlite3", dbFile+"?_journal=WAL")
 	if err != nil {
 		return nil, err
 	}
